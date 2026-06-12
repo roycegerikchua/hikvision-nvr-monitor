@@ -51,7 +51,7 @@ def build_app(config_path: str | None = None) -> FastAPI:
     @app.get("/api/status")
     async def api_status():
         statuses = [serialize_status(item) for item in service.snapshot().values()]
-        statuses.sort(key=lambda item: (item["nvr_name"], item["camera_id"]))
+        statuses.sort(key=lambda item: (item["nvr_name"], int(item["camera_id"])))
         return {
             "overall_status": service.overall_status(),
             "last_poll_started_at": service.last_poll_started_at.isoformat() if service.last_poll_started_at else None,
