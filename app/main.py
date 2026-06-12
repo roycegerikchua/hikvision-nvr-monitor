@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from .config import load_config
 from .monitor import MonitorService
 from .repository import load_config_from_sql_env, SqlServerRepository
+from .time_sync import clock_check_all, sync_all
 
 
 def serialize_status(status) -> dict[str, Any]:
@@ -69,6 +70,42 @@ def build_app(config_path: str | None = None) -> FastAPI:
     @app.get("/health")
     async def health():
         return {"ok": True, "overall_status": service.overall_status()}
+
+    # ── NVR Clock Check & Sync (must be BEFORE {nvr_id} route) ──
+    @app.get("/api/nvrs/clock-check")
+    async def nvr_clock_check():
+        """Check clock offset on all NVRs via ISAPI."""
+        repo = get_repo()
+        raw_nvrs = []
+        for n in repo.list_nvrs():
+            raw = repo.get_nvr(n["nvr_id"])
+            if raw:
+                raw_nvrs.append(raw)
+        results = await clock_check_all(raw_nvrs)
+        return {
+            "total": len(raw_nvrs),
+            "checked": sum(1 for r in results if r["status"] == "ok"),
+            "unreachable": sum(1 for r in results if r["status"] != "ok"),
+            "results": results,
+        }
+
+    @app.post("/api/nvrs/sync-time")
+    async def nvr_sync_time():
+        """Sync clocks of all reachable NVRs to current PHT time."""
+        repo = get_repo()
+        raw_nvrs = []
+        for n in repo.list_nvrs():
+            raw = repo.get_nvr(n["nvr_id"])
+            if raw:
+                raw_nvrs.append(raw)
+        results = await sync_all(raw_nvrs)
+        return {
+            "total": len(raw_nvrs),
+            "synced": sum(1 for r in results if r["status"] == "ok"),
+            "failed": sum(1 for r in results if r["status"] == "error"),
+            "skipped": sum(1 for r in results if r["status"] == "skipped"),
+            "results": results,
+        }
 
     # ── NVR Management CRUD ───────────────────────────────────
     @app.get("/api/nvrs")
@@ -240,10 +277,13 @@ DASHBOARD_HTML = """\
     <div class="toolbar">
       <button onclick="openNvrModal()">+ Add NVR</button>
       <button class="secondary" onclick="reloadConfig()">Rescan DB</button>
+      <button onclick="clockCheck()">⏱ Check Clocks</button>
+      <button onclick="syncClocks()">🔄 Sync Clocks</button>
       <span id="nvrSummary" class="muted"></span>
     </div>
+    <div id="clockStatus" class="muted" style="margin-bottom:12px"></div>
     <table>
-      <thead><tr><th>ID</th><th>Location</th><th>IP</th><th>Username</th><th>Password</th><th>Port</th><th>Actions</th></tr></thead>
+      <thead><tr><th>ID</th><th>Location</th><th>IP</th><th>Username</th><th>Password</th><th>Port</th><th>Clock</th><th>Actions</th></tr></thead>
       <tbody id="nvrRows"></tbody>
     </table>
   </div>
@@ -374,11 +414,30 @@ async function pollNow() { await fetch('/api/poll-now', {method:'POST'}); await 
 refresh(); setInterval(refresh, 30000);
 
 // ── NVR Management ───────────────────────────────────────────
+let clockData = {};
+
 async function loadNvrs() {
   const res = await fetch('/api/nvrs');
   allNvrs = await res.json();
   document.getElementById('nvrSummary').textContent = `${allNvrs.length} NVRs configured`;
-  document.getElementById('nvrRows').innerHTML = allNvrs.map(n => `
+  renderNvrRows();
+}
+
+function renderNvrRows() {
+  const haveClock = Object.keys(clockData).length > 0;
+  document.getElementById('nvrRows').innerHTML = allNvrs.map(n => {
+    const cd = clockData[n.nvr_id];
+    let clockCell = '-';
+    if (cd) {
+      if (cd.status === 'ok') {
+        const cls = Math.abs(cd.offset_minutes) < 1 ? 'badge ok' :
+                    Math.abs(cd.offset_minutes) < 15 ? 'badge stale' : 'badge missing';
+        clockCell = `<span class="${cls}">${escapeHtml(cd.offset_label)}</span>`;
+      } else {
+        clockCell = `<span class="badge error">${escapeHtml(cd.error || '?')}</span>`;
+      }
+    }
+    return `
     <tr>
       <td>${n.nvr_id}</td>
       <td>${escapeHtml(n.location)}</td>
@@ -386,11 +445,55 @@ async function loadNvrs() {
       <td>${escapeHtml(n.username)}</td>
       <td>${escapeHtml(n.password)}</td>
       <td>${n.port}</td>
+      <td>${clockCell}</td>
       <td class="actions">
         <button onclick="editNvr(${n.nvr_id})">Edit</button>
         <button class="danger" onclick="deleteNvr(${n.nvr_id})">Delete</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+  document.getElementById('clockStatus').textContent = haveClock
+    ? `Last clock check: ${Object.keys(clockData).length} NVRs`
+    : '';
+}
+
+async function clockCheck() {
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+  try {
+    const res = await fetch('/api/nvrs/clock-check');
+    const data = await res.json();
+    clockData = {};
+    for (const r of data.results) {
+      clockData[r.nvr_id] = r;
+    }
+    renderNvrRows();
+    const msg = `${data.checked} reachable, ${data.unreachable} unreachable`;
+    document.getElementById('clockStatus').textContent = msg;
+  } catch(e) {
+    alert('Clock check failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⏱ Check Clocks'; }
+  }
+}
+
+async function syncClocks() {
+  if (!confirm('Sync clocks on all reachable NVRs? This will set each NVR to current PHT time via ISAPI.')) return;
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+  try {
+    const res = await fetch('/api/nvrs/sync-time', {method:'POST'});
+    const data = await res.json();
+    // Re-check after sync
+    await clockCheck();
+    const msg = `${data.synced} synced, ${data.failed} failed, ${data.skipped} skipped`;
+    document.getElementById('clockStatus').textContent = msg;
+    alert(`Sync complete: ${msg}`);
+  } catch(e) {
+    alert('Sync failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync Clocks'; }
+  }
 }
 
 function openNvrModal(nvr) {
