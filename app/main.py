@@ -119,7 +119,6 @@ def build_app(config_path: str | None = None) -> FastAPI:
             if raw:
                 raw_nvrs.append(raw)
         result = await verify_all_channels(raw_nvrs)
-        # Save inactive list
         inactive_set = {(item["nvr_id"], item["cam_id"]) for item in result["inactive"]}
         save_inactive(inactive_set)
         return result
@@ -132,6 +131,61 @@ def build_app(config_path: str | None = None) -> FastAPI:
             "count": len(pairs),
             "inactive": [{"nvr_id": n, "cam_id": c} for n, c in sorted(pairs)],
         }
+
+    # ── Camera Management (manual active/inactive toggle) ──
+    @app.get("/api/cameras/manage")
+    async def manage_cameras():
+        """List all cameras grouped by NVR with inactive status."""
+        repo = get_repo()
+        inactive = load_inactive()
+        raw_nvrs = []
+        for n in repo.list_nvrs():
+            raw = repo.get_nvr(n["nvr_id"])
+            if raw:
+                raw_nvrs.append(raw)
+
+        conn = repo.connection
+        cursor = conn.cursor()
+        results = []
+        for n in raw_nvrs:
+            rows = cursor.execute(
+                "SELECT cam_id, camera, MAX(line_id) "
+                "FROM [NVRTest].[dbo].[cameraresults] "
+                "WHERE nvr_id = ? AND cam_id IS NOT NULL AND cam_id != 0 "
+                "GROUP BY nvr_id, cam_id, camera ORDER BY cam_id",
+                n["nvr_id"]
+            ).fetchall()
+            cameras = []
+            for r in rows:
+                cid = int(r[0])
+                cameras.append({
+                    "cam_id": cid,
+                    "name": r[1],
+                    "inactive": (n["nvr_id"], cid) in inactive,
+                })
+            results.append({
+                "nvr_id": n["nvr_id"],
+                "location": n["location"],
+                "ip": n["ip"],
+                "camera_count": len(cameras),
+                "inactive_count": sum(1 for c in cameras if c["inactive"]),
+                "cameras": cameras,
+            })
+        return {"nvrs": results}
+
+    @app.post("/api/cameras/toggle-inactive")
+    async def toggle_inactive(body: dict):
+        """Toggle a camera's inactive status."""
+        nvr_id = int(body["nvr_id"])
+        cam_id = int(body["cam_id"])
+        inactive = body.get("inactive", True)
+        pairs = load_inactive()
+        if inactive:
+            pairs.add((nvr_id, cam_id))
+        else:
+            pairs.discard((nvr_id, cam_id))
+        save_inactive(pairs)
+        return {"nvr_id": nvr_id, "cam_id": cam_id, "inactive": inactive}
 
     # ── NVR Management CRUD ───────────────────────────────────
     @app.get("/api/nvrs")
@@ -310,7 +364,7 @@ DASHBOARD_HTML = """\
     </div>
     <div id="clockStatus" class="muted" style="margin-bottom:12px"></div>
     <table>
-      <thead><tr><th>ID</th><th>Location</th><th>IP</th><th>Username</th><th>Password</th><th>Port</th><th>Clock</th><th>Actions</th></tr></thead>
+      <thead><tr><th>ID</th><th>Location</th><th>IP</th><th>Username</th><th>Password</th><th>Port</th><th>Cameras</th><th>Clock</th><th>Actions</th></tr></thead>
       <tbody id="nvrRows"></tbody>
     </table>
   </div>
@@ -442,6 +496,7 @@ refresh(); setInterval(refresh, 30000);
 
 // ── NVR Management ───────────────────────────────────────────
 let clockData = {};
+let camData = {};  // nvr_id -> {cameras: [...], loaded: bool}
 
 async function loadNvrs() {
   const res = await fetch('/api/nvrs');
@@ -464,6 +519,10 @@ function renderNvrRows() {
         clockCell = `<span class="badge error">${escapeHtml(cd.error || '?')}</span>`;
       }
     }
+    const ed = camData[n.nvr_id];
+    const camCount = ed ? ed.cameras.length : '?';
+    const inactCount = ed ? ed.cameras.filter(c => c.inactive).length : 0;
+    const camLabel = ed ? `${camCount} (${inactCount} off)` : 'View';
     return `
     <tr>
       <td>${n.nvr_id}</td>
@@ -472,16 +531,65 @@ function renderNvrRows() {
       <td>${escapeHtml(n.username)}</td>
       <td>${escapeHtml(n.password)}</td>
       <td>${n.port}</td>
+      <td><a href="#" onclick="event.preventDefault();toggleNvrCameras(${n.nvr_id})" style="font-size:12px">${camLabel}</a></td>
       <td>${clockCell}</td>
       <td class="actions">
         <button onclick="editNvr(${n.nvr_id})">Edit</button>
         <button class="danger" onclick="deleteNvr(${n.nvr_id})">Delete</button>
       </td>
-    </tr>`;
+    </tr>${renderCamSubRow(n.nvr_id)}`;
   }).join('');
   document.getElementById('clockStatus').textContent = haveClock
     ? `Last clock check: ${Object.keys(clockData).length} NVRs`
     : '';
+}
+
+function renderCamSubRow(nvrId) {
+  const ed = camData[nvrId];
+  if (!ed || !ed._expanded) return '';
+  return `<tr><td colspan="9" style="padding:0;background:var(--bg-elevated)">
+    <div style="padding:8px 12px;font-size:12px">
+      <div style="display:flex;gap:8px;font-weight:600;color:var(--text-tertiary);padding:4px 0;border-bottom:1px solid var(--border-subtle);margin-bottom:4px">
+        <span style="width:50px">Cam ID</span>
+        <span style="flex:1">Name</span>
+        <span style="width:80px;text-align:center">Status</span>
+      </div>
+      ${ed.cameras.map(c => {
+        const statusClass = c.inactive ? 'badge missing' : 'badge ok';
+        const statusText = c.inactive ? 'OFF' : 'ON';
+        const toggleAction = c.inactive ? 'enable' : 'disable';
+        return `<div style="display:flex;gap:8px;align-items:center;padding:3px 0">
+          <span style="width:50px;font-family:var(--font-mono);color:var(--text-secondary)">${c.cam_id}</span>
+          <span style="flex:1">${escapeHtml(c.name)}</span>
+          <span style="width:80px;text-align:center"><span class="${statusClass}" style="cursor:pointer" onclick="toggleCamera(${nvrId},${c.cam_id},${!c.inactive})">${statusText}</span></span>
+        </div>`;
+      }).join('')}
+    </div>
+  </td></tr>`;
+}
+
+async function toggleNvrCameras(nvrId) {
+  if (!camData[nvrId] || !camData[nvrId]._loaded) {
+    const res = await fetch('/api/cameras/manage');
+    const data = await res.json();
+    for (const n of data.nvrs) {
+      camData[n.nvr_id] = {cameras: n.cameras, _loaded: true, _expanded: false};
+    }
+  }
+  camData[nvrId]._expanded = !camData[nvrId]._expanded;
+  renderNvrRows();
+}
+
+async function toggleCamera(nvrId, camId, setInactive) {
+  await fetch('/api/cameras/toggle-inactive', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({nvr_id: nvrId, cam_id: camId, inactive: setInactive}),
+  });
+  // Refresh camera data
+  camData = {};
+  if (camData[nvrId]) camData[nvrId] = {_expanded: true};
+  await toggleNvrCameras(nvrId);
 }
 
 async function clockCheck() {

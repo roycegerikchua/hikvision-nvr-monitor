@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 from typing import Iterable, Sequence
 
+from .channel_verify import load_inactive
 from .config import AppConfig, CameraConfig, NvrConfig
 from .hikvision import CameraRecordingStatus
 
@@ -106,6 +107,17 @@ class SqlServerRepository:
     def load_config(self) -> AppConfig:
         cursor = self.connection.cursor()
         rows = cursor.execute(DEFAULT_QUERY).fetchall()
+        # Filter out cameras marked as inactive (removed from NVR or manually disabled)
+        inactive = load_inactive()
+        if inactive:
+            filtered = []
+            for row in rows:
+                rid = int(_get(row, "nvr_id"))
+                # cam_id is the 9th column (index 8) in the SELECT
+                cid = int(_get(row, "cam_id"))
+                if (rid, cid) not in inactive:
+                    filtered.append(row)
+            rows = filtered
         return rows_to_config(
             rows,
             poll_interval_seconds=self.poll_interval_seconds,
