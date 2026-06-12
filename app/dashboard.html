@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NVR Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>:root{--bg-app:#0b0e14;--bg-sidebar:#0d1117;--bg-surface:#11161e;--bg-card:#151b24;--bg-card-hover:#1a212c;--bg-elevated:#1c232f;--bg-input:#1a212c;--border-subtle:#1e2733;--border-card:#232d3b;--border-active:#2d3a4c;--text-primary:#e8edf5;--text-secondary:#8b95a8;--text-tertiary:#5b667a;--text-muted:#3d485c;--accent-blue:#3b82f6;--accent-blue-bg:rgba(59,130,246,0.12);--accent-cyan:#22d3ee;--accent-green:#22c55e;--accent-green-bg:rgba(34,197,94,0.12);--accent-amber:#f59e0b;--accent-amber-bg:rgba(245,158,11,0.12);--accent-red:#ef4444;--accent-red-bg:rgba(239,68,68,0.12);--accent-purple:#a78bfa;--accent-purple-bg:rgba(167,139,250,0.12);--radius-xs:4px;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--shadow-card:0 1px 3px rgba(0,0,0,0.3);--font-sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--font-mono:'JetBrains Mono','SF Mono','Fira Code',monospace;--sidebar-w:220px;--topbar-h:48px;--transition:150ms cubic-bezier(0.4,0,0.2,1)}*{margin:0;padding:0;box-sizing:border-box}html{font-size:14px}body{font-family:var(--font-sans);background:var(--bg-app);color:var(--text-primary);overflow:hidden;height:100vh;-webkit-font-smoothing:antialiased}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-active);border-radius:3px}.app{display:flex;height:100vh}.sidebar{width:var(--sidebar-w);background:var(--bg-sidebar);border-right:1px solid var(--border-subtle);display:flex;flex-direction:column;flex-shrink:0;z-index:10}.sidebar-logo{height:var(--topbar-h);display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--border-subtle);font-weight:700;font-size:14px;letter-spacing:-.02em}.logo-icon{width:26px;height:26px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan));border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:800}.sidebar-nav{flex:1;padding:6px;overflow-y:auto}.nav-section{margin-bottom:14px}.nav-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-tertiary);padding:5px 10px 3px}.nav-item{display:flex;align-items:center;gap:8px;padding:5px 10px;margin:1px 0;border-radius:var(--radius-md);color:var(--text-secondary);font-size:12px;font-weight:500;cursor:pointer;transition:all var(--transition)}.nav-item:hover{background:var(--bg-card);color:var(--text-primary)}.nav-item.active{background:var(--accent-blue-bg);color:var(--accent-blue)}.nav-item .ni-icon{width:16px;text-align:center;flex-shrink:0;font-size:13px}.nav-item .ni-badge{margin-left:auto;font-size:9px;padding:0 5px;border-radius:999px;font-weight:600}.ni-badge.danger{background:var(--accent-red-bg);color:var(--accent-red)}.ni-badge.warn{background:var(--accent-amber-bg);color:var(--accent-amber)}.ni-badge.info{background:var(--accent-blue-bg);color:var(--accent-blue)}.main{flex:1;display:flex;flex-direction:column;min-width:0}.topbar{height:var(--topbar-h);background:var(--bg-surface);border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0}.topbar-left{display:flex;align-items:center;gap:10px;flex:1}.topbar-title{font-weight:600;font-size:13px}.topbar-status{display:flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}.topbar-status.live{background:var(--accent-green-bg);color:var(--accent-green)}.topbar-status .dot{width:5px;height:5px;border-radius:50%}.topbar-status.live .dot{background:var(--accent-green);box-shadow:0 0 5px var(--accent-green)}.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}.topbar-time{font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)}.content{flex:1;overflow-y:auto;padding:16px 20px}.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}.stat-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-lg);padding:12px 14px;transition:all var(--transition)}.stat-card:hover{border-color:var(--border-active);background:var(--bg-card-hover)}.stat-card .sl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary);margin-bottom:3px}.stat-card .sv{font-size:20px;font-weight:700;letter-spacing:-.03em;line-height:1.2}.stat-card .ss{font-size:10px;color:var(--text-secondary);margin-top:1px}.stat-card .st{font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:2px;margin-top:1px}.stat-card .st.up{color:var(--accent-green)}.stat-card .st.down{color:var(--accent-red)}.filter-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-lg)}.filter-bar select,.filter-bar .fb{background:var(--bg-input);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:4px 8px;font-size:11px;color:var(--text-secondary);outline:none;cursor:pointer;transition:var(--transition);font-family:var(--font-sans)}.filter-bar select:hover,.filter-bar .fb:hover{border-color:var(--border-active);color:var(--text-primary)}.filter-bar .fl{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-right:2px}.filter-bar .sp{flex:1}.filter-bar .rc{font-size:11px;color:var(--text-tertiary)}.section{margin-bottom:20px}.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.section-title{font-size:14px;font-weight:700;letter-spacing:-.01em}.camera-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}.camera-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-xl);overflow:hidden;transition:all var(--transition);animation:fadeInUp .3s ease both}.camera-card:nth-child(1){animation-delay:0s}.camera-card:nth-child(2){animation-delay:.02s}.camera-card:nth-child(3){animation-delay:.04s}.camera-card:nth-child(4){animation-delay:.06s}.camera-card:hover{border-color:var(--border-active);background:var(--bg-card-hover);transform:translateY(-1px)}.camera-card.critical{border-color:var(--accent-red)}.camera-card.warning{border-color:var(--accent-amber)}.cam-preview{height:90px;background:var(--bg-elevated);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}.cam-thumb{width:100%;height:100%;background:linear-gradient(135deg,#0d1117,#1a212c,#0d1117);display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:26px}.cam-badge{position:absolute;top:5px;left:6px;padding:1px 6px;border-radius:999px;font-size:9px;font-weight:700;text-transform:uppercase;backdrop-filter:blur(8px)}.cam-badge.online{background:rgba(34,197,94,0.2);color:var(--accent-green)}.cam-badge.offline{background:rgba(239,68,68,0.2);color:var(--accent-red)}.cam-badge.warning{background:rgba(245,158,11,0.2);color:var(--accent-amber)}.cam-badge.missing{background:rgba(100,116,139,0.2);color:var(--text-secondary)}.cam-time{position:absolute;bottom:5px;right:6px;font-size:9px;font-family:var(--font-mono);color:rgba(255,255,255,.7);background:rgba(0,0,0,.5);padding:1px 4px;border-radius:var(--radius-xs)}.cam-body{padding:8px 10px 10px}.cam-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px}.cam-name{font-weight:600;font-size:12px;line-height:1.3}.cam-location{font-size:10px;color:var(--text-tertiary);margin-top:0}.cam-stat-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px}.cam-stat-row .cs{font-size:10px;padding:2px 5px;background:var(--bg-elevated);border-radius:var(--radius-sm);color:var(--text-secondary);white-space:nowrap}.cs-alert{margin-top:4px;padding:3px 6px;border-radius:var(--radius-sm);font-size:10px;display:flex;align-items:center;gap:3px;line-height:1.3}.cs-alert.error{background:var(--accent-red-bg);color:var(--accent-red)}.cs-alert.warn{background:var(--accent-amber-bg);color:var(--accent-amber)}.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}.chart-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-xl);padding:14px}.chart-card .ch-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.chart-card .ch-t{font-size:13px;font-weight:600}.chart-card .ch-s{font-size:10px;color:var(--text-tertiary)}.chart-card .bar-chart{display:flex;align-items:flex-end;gap:3px;height:80px;padding-top:4px}.bar-chart .bar{flex:1;border-radius:2px 2px 0 0;min-height:3px;position:relative}.bar-chart .bar .bl{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--text-tertiary);white-space:nowrap}.chart-legend{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}.legend-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-secondary)}.legend-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}.site-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:16px}.site-card{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--radius-lg);padding:10px 12px;transition:var(--transition)}.site-card:hover{border-color:var(--border-active);background:var(--bg-card-hover)}.site-card .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}.site-card .sn{font-weight:600;font-size:12px}.site-card .site-pills{display:flex;gap:3px}.site-card .site-pills .pill{font-size:9px;padding:0 4px;border-radius:999px;font-weight:600}.pill.online{background:var(--accent-green-bg);color:var(--accent-green)}.pill.offline{background:var(--accent-red-bg);color:var(--accent-red)}.site-card .sd{display:grid;grid-template-columns:1fr 1fr;gap:1px 6px;font-size:10px;margin-bottom:3px}.site-card .sd .sdk{color:var(--text-tertiary)}.site-card .sd .sdv{text-align:right;font-weight:500}.site-bar{height:3px;background:var(--bg-elevated);border-radius:2px;overflow:hidden;margin-top:3px}.site-bar .fill{height:100%;border-radius:2px;transition:width .6s ease}.site-bar .fill.green{background:var(--accent-green)}.site-bar .fill.amber{background:var(--accent-amber)}.site-bar .fill.red{background:var(--accent-red)}.alert-list{display:flex;flex-direction:column;gap:4px}.alert-row{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg-elevated);border-radius:var(--radius-md);font-size:11px;border-left:3px solid transparent}.alert-row.critical{border-left-color:var(--accent-red)}.alert-row.warning{border-left-color:var(--accent-amber)}.alert-row.info{border-left-color:var(--accent-blue)}.alert-row .ai{width:12px;text-align:center;flex-shrink:0}.alert-row .am{flex:1}.alert-row .am strong{font-weight:600}.alert-row .at{font-size:9px;color:var(--text-tertiary);font-family:var(--font-mono);white-space:nowrap}.alert-row .asite{font-size:9px;color:var(--text-tertiary);padding:0 4px;background:var(--bg-card);border-radius:var(--radius-xs)}@keyframes fadeInUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}.pulse{animation:pulse-dot 2s ease-in-out infinite}@media(max-width:1200px){.chart-row{grid-template-columns:1fr}}@media(max-width:768px){.sidebar{display:none}.content{padding:10px}.camera-grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}</style>
+</head>
+<body><div class="app">
+<aside class="sidebar">
+  <div class="sidebar-logo"><div class="logo-icon">N</div><span>NVR Command</span></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section"><div class="nav-label">Monitoring</div>
+      <div class="nav-item active"><span class="ni-icon">◆</span>Dashboard</div>
+      <div class="nav-item"><span class="ni-icon">◉</span>Live View</div>
+      <div class="nav-item"><span class="ni-icon">▦</span>Playback</div>
+      <div class="nav-item"><span class="ni-icon">◷</span>Events<span class="ni-badge danger" id="eventBadge">0</span></div>
+      <div class="nav-item"><span class="ni-icon">△</span>Alerts<span class="ni-badge warn" id="alertBadge">0</span></div>
+    </div>
+    <div class="nav-section"><div class="nav-label">Infrastructure</div>
+      <div class="nav-item"><span class="ni-icon">◻</span>Cameras <span class="ni-badge info" id="navCamCount">0</span></div>
+      <div class="nav-item"><span class="ni-icon">▤</span>NVR Servers <span class="ni-badge info" id="navNvrCount">0</span></div>
+      <div class="nav-item"><span class="ni-icon">◉</span>Sites <span class="ni-badge info" id="navSiteCount">0</span></div>
+    </div>
+    <div class="nav-section"><div class="nav-label">Operations</div>
+      <div class="nav-item"><span class="ni-icon">⚙</span>Settings</div>
+      <div class="nav-item"><span class="ni-icon">◷</span>Audit Log</div>
+    </div>
+  </nav>
+</aside>
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-left"><span class="topbar-title">Recording Monitor</span><span class="topbar-status live"><span class="dot pulse"></span> System Live</span></div>
+    <div class="topbar-right"><span class="topbar-time" id="clock">--:--:--</span></div>
+  </header>
+  <main class="content">
+    <div class="stats-row" id="statsRow"></div>
+    <div class="filter-bar">
+      <span class="fl">NVR</span><select id="fNvr"><option value="all">All NVRs</option></select>
+      <span class="fl">Status</span><select id="fStatus"><option value="all">All</option><option value="ok">OK</option><option value="stale">Stale</option><option value="missing">Missing</option><option value="error">Error</option></select>
+      <button class="fb" onclick="resetFilters()">Clear</button>
+      <span class="sp"></span><span class="rc" id="resultCount">Loading...</span>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="ch-h"><div><div class="ch-t">Recording Integrity (24h)</div><div class="ch-s">Per-NVR recording completeness</div></div></div>
+        <div class="bar-chart" id="integrityChart"></div>
+        <div class="chart-legend"><span class="legend-item"><span class="legend-dot" style="background:var(--accent-green)"></span>OK</span><span class="legend-item"><span class="legend-dot" style="background:var(--accent-red)"></span>Missing/Error</span><span class="legend-item"><span class="legend-dot" style="background:var(--accent-amber)"></span>Stale</span></div>
+      </div>
+      <div class="chart-card">
+        <div class="ch-h"><div><div class="ch-t">Camera Status Distribution</div><div class="ch-s">All cameras by health status</div></div></div>
+        <div class="bar-chart" id="statusChart"></div>
+        <div class="chart-legend" id="statusLegend"></div>
+      </div>
+    </div>
+    <div class="section"><div class="section-header"><span class="section-title">NVR Site Health</span></div><div class="site-grid" id="siteGrid"></div></div>
+    <div class="section"><div class="section-header"><span class="section-title">Camera Health</span></div><div class="camera-grid" id="cameraGrid"></div></div>
+    <div class="section"><div class="section-header"><span class="section-title">Active Issues</span></div><div class="alert-list" id="alertList"></div></div>
+  </main>
+</div></div>
+<script>
+let allCams = [], allNvrs = [];
+let pollInterval = 300, staleAfter = 120;
+
+async function loadData() {
+  try {
+    const [statusRes, nvrsRes] = await Promise.all([
+      fetch('/api/status'), fetch('/api/nvrs')
+    ]);
+    const status = await statusRes.json();
+    allCams = status.cameras || [];
+    allNvrs = await nvrsRes.json();
+    pollInterval = status.poll_interval_seconds || 300;
+    staleAfter = status.stale_after_minutes || 120;
+    render();
+  } catch(e) {
+    document.getElementById('resultCount').textContent = 'Error loading data';
+  }
+}
+
+function render() {
+  renderStats();
+  renderSites();
+  renderFilters();
+  renderCameras();
+  renderCharts();
+  renderAlerts();
+  renderNav();
+  renderClock();
+}
+
+function renderStats() {
+  const total = allCams.length;
+  const ok = allCams.filter(c => c.status === 'ok').length;
+  const stale = allCams.filter(c => c.status === 'stale').length;
+  const missing = allCams.filter(c => c.status === 'missing').length;
+  const error = allCams.filter(c => c.status === 'error').length;
+  const online = ok + stale;
+  const onlinePct = total ? Math.round(online/total*100) : 0;
+  const integrity = total ? Math.round(ok/total*100) : 0;
+  const nvrCount = allNvrs.length;
+  const camPerNvr = nvrCount ? (total/nvrCount).toFixed(0) : '-';
+
+  const stats = [
+    {l:'Total Cameras', v:total.toLocaleString(), s:`${nvrCount} NVRs · ${camPerNvr} avg/NVR`},
+    {l:'Online', v:online.toLocaleString(), s:`${onlinePct}% of total`, t:'up', tl:`${onlinePct}%`},
+    {l:'Offline / Error', v:(missing+error).toLocaleString(), s:`${missing} missing · ${error} errors`, t:(missing+error)>10?'down':'neutral', tl:(missing+error)>10?'needs attention':'stable'},
+    {l:'Active Recordings', v:ok.toLocaleString(), s:'Recording within threshold', c:'var(--accent-green)'},
+    {l:'Stale Cameras', v:stale, s:`Older than ${staleAfter} min`, t:stale>10?'down':'neutral', tl:stale>10?'warning':'normal', c:'var(--accent-amber)'},
+    {l:'Recording Integrity', v:`${integrity}%`, s:'24h OK rate', c:integrity>90?'var(--accent-green)':integrity>75?'var(--accent-amber)':'var(--accent-red)'},
+    {l:'NVR Servers', v:nvrCount, s:'Configured in database'},
+  ];
+  document.getElementById('statsRow').innerHTML = stats.map(s =>
+    `<div class="stat-card"><div class="sl">${s.l}</div><div class="sv" style="${s.c?'color:'+s.c:''}">${s.v}</div><div class="ss">${s.s}</div>${s.t?`<div class="st ${s.t}">${s.t==='up'?'↑':s.t==='down'?'↓':'→'} ${s.tl}</div>`:''}</div>`
+  ).join('');
+}
+
+function renderSites() {
+  const groups = {};
+  allCams.forEach(c => {
+    const n = c.nvr_name || 'Unknown';
+    if(!groups[n]) groups[n] = {name:n,host:c.nvr_host||'',ok:0,stale:0,missing:0,error:0,total:0};
+    groups[n][c.status] = (groups[n][c.status]||0) + 1;
+    groups[n].total++;
+  });
+  const html = Object.values(groups).map(g => {
+    const okPct = g.total ? Math.round(((g.ok||0)+(g.stale||0))/g.total*100) : 0;
+    const barCls = okPct>90?'green':okPct>75?'amber':'red';
+    return `<div class="site-card">
+      <div class="sh"><span class="sn">${esc(g.name)}</span><div class="site-pills"><span class="pill online">${g.ok||0}</span><span class="pill offline">${(g.missing||0)+(g.error||0)}</span></div></div>
+      <div class="sd"><span class="sdk">Host</span><span class="sdv" style="font-family:var(--font-mono);font-size:9px">${esc(g.host)}</span><span class="sdk">Health</span><span class="sdv">${okPct}%</span><span class="sdk">Stale</span><span class="sdv" style="color:var(--accent-amber)">${g.stale||0}</span><span class="sdk">Errors</span><span class="sdv" style="color:var(--accent-red)">${g.error||0}</span></div>
+      <div class="site-bar"><div class="fill ${barCls}" style="width:${okPct}%"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('siteGrid').innerHTML = html;
+  document.getElementById('navSiteCount').textContent = Object.keys(groups).length;
+}
+
+function renderFilters() {
+  const nvrs = [...new Set(allCams.map(c => c.nvr_name))].sort();
+  const sel = document.getElementById('fNvr');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">All NVRs</option>' + nvrs.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = cur;
+}
+
+function filtered() {
+  const nvr = document.getElementById('fNvr').value;
+  const stat = document.getElementById('fStatus').value;
+  return allCams.filter(c => (nvr==='all'||c.nvr_name===nvr) && (stat==='all'||c.status===stat));
+}
+
+function renderCameras() {
+  const cams = filtered();
+  document.getElementById('resultCount').textContent = `Showing ${cams.length} of ${allCams.length} cameras`;
+  document.getElementById('cameraGrid').innerHTML = cams.map(c => {
+    const badgeCls = c.status==='ok'?'online':c.status==='stale'?'warning':c.status==='missing'?'missing':'offline';
+    const badgeTxt = c.status==='ok'?'OK':c.status==='stale'?'STALE':c.status==='missing'?'MISSING':'ERROR';
+    const critical = c.status==='error'||c.status==='missing'?'critical':'';
+    const age = c.age_minutes==null?'-':`${c.age_minutes}m`;
+    const time = c.last_end_time ? new Date(c.last_end_time).toLocaleString() : '-';
+    const nvrShort = c.nvr_name.replace(/ .*/,'');
+    return `<div class="camera-card ${critical}">
+      <div class="cam-preview"><div class="cam-thumb">◉</div><span class="cam-badge ${badgeCls}">${badgeTxt}</span><span class="cam-time">${esc(nvrShort)}</span></div>
+      <div class="cam-body">
+        <div class="cam-header"><div><div class="cam-name">${esc(c.camera_name)}</div><div class="cam-location">${esc(c.nvr_name)} · ${esc(c.camera_id)}</div></div></div>
+        <div class="cam-stat-row">
+          <span class="cs">Status: <strong style="color:${c.status==='ok'?'var(--accent-green)':c.status==='stale'?'var(--accent-amber)':'var(--accent-red)'}">${c.status}</strong></span>
+          <span class="cs">Age: ${age}</span>
+          <span class="cs">Host: ${esc(c.nvr_host||'-')}</span>
+        </div>
+        ${c.error ? `<div class="cs-alert error">△ ${esc(c.error)}</div>` : ''}
+        ${c.status==='stale' ? `<div class="cs-alert warn">△ Last recording ${age} ago</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('navCamCount').textContent = allCams.length;
+}
+
+function renderCharts() {
+  // Integrity chart
+  const groups = {};
+  allCams.forEach(c => {
+    const n = c.nvr_name || 'U';
+    if(!groups[n]) groups[n]={name:n,ok:0,total:0};
+    groups[n].ok += c.status==='ok'?1:0;
+    groups[n].total++;
+  });
+  const arr = Object.values(groups).map(g => ({name:g.name.replace(/ .*/,''), pct:Math.round(g.ok/g.total*100)}));
+  const maxPct = Math.max(...arr.map(a=>a.pct),50);
+  document.getElementById('integrityChart').innerHTML = arr.map(a => {
+    const h = Math.max(3, a.pct/maxPct*100);
+    const clr = a.pct>=90?'var(--accent-green)':a.pct>=70?'var(--accent-amber)':'var(--accent-red)';
+    return `<div class="bar" style="height:${h}%;background:${clr}"><span class="bl">${esc(a.name)}</span></div>`;
+  }).join('');
+
+  // Status distribution
+  const counts = {ok:0,stale:0,missing:0,error:0};
+  allCams.forEach(c => { if(counts[c.status]!==undefined) counts[c.status]++; });
+  const maxCount = Math.max(...Object.values(counts),1);
+  const colors = {ok:'var(--accent-green)',stale:'var(--accent-amber)',missing:'var(--accent-red)',error:'var(--accent-red-bg)'};
+  document.getElementById('statusChart').innerHTML = Object.entries(counts).map(([k,v]) => {
+    const h = Math.max(3, v/maxCount*100);
+    return `<div class="bar" style="height:${h}%;background:${colors[k]}"><span class="bl">${k}</span></div>`;
+  }).join('');
+  document.getElementById('statusLegend').innerHTML = Object.entries(counts).map(([k,v]) =>
+    `<span class="legend-item"><span class="legend-dot" style="background:${colors[k]}"></span>${k}: ${v}</span>`
+  ).join('');
+}
+
+function renderAlerts() {
+  const errors = allCams.filter(c => c.status==='error').slice(0,8);
+  const stales = allCams.filter(c => c.status==='stale').slice(0,4);
+  const missing = allCams.filter(c => c.status==='missing').slice(0,4);
+  const items = [];
+  errors.forEach(c => items.push({sev:'critical', msg:`<strong>${esc(c.camera_name)}</strong> — ${esc(c.error||'Connection error')}`, site:c.nvr_name}));
+  stales.forEach(c => items.push({sev:'warning', msg:`<strong>${esc(c.camera_name)}</strong> — No recent recording (${c.age_minutes}m ago)`, site:c.nvr_name}));
+  missing.forEach(c => items.push({sev:'info', msg:`<strong>${esc(c.camera_name)}</strong> — No recording found in lookback window`, site:c.nvr_name}));
+  
+  document.getElementById('alertBadge').textContent = errors.length + stales.length;
+  document.getElementById('eventBadge').textContent = items.length;
+
+  if(!items.length) {
+    document.getElementById('alertList').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-tertiary);font-size:13px">All cameras operating normally ✓</div>';
+    return;
+  }
+  document.getElementById('alertList').innerHTML = items.slice(0,12).map(a =>
+    `<div class="alert-row ${a.sev}"><span class="ai">${a.sev==='critical'?'◉':a.sev==='warning'?'◈':'○'}</span><span class="am">${a.msg}</span><span class="asite">${esc(a.site)}</span></div>`
+  ).join('');
+}
+
+function renderNav() {
+  document.getElementById('navNvrCount').textContent = allNvrs.length;
+}
+
+function resetFilters() {
+  document.getElementById('fNvr').value = 'all';
+  document.getElementById('fStatus').value = 'all';
+  renderCameras();
+}
+
+function esc(s) { return String(s??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
+
+// Clock
+function renderClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-PH',{hour12:false});
+}
+setInterval(renderClock, 1000);
+
+// Live filter bindings
+document.getElementById('fNvr').addEventListener('change', renderCameras);
+document.getElementById('fStatus').addEventListener('change', renderCameras);
+
+// Auto-refresh
+loadData();
+setInterval(loadData, 30000);
+</script>
+</body></html>
