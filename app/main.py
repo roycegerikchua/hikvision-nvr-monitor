@@ -12,7 +12,7 @@ from .config import load_config
 from .monitor import MonitorService
 from .repository import load_config_from_sql_env, SqlServerRepository
 from .time_sync import clock_check_all, sync_all
-from .channel_verify import verify_all_channels, load_inactive, save_inactive
+from .channel_verify import verify_all_channels, load_inactive, save_inactive, get_nvr_channel_ids
 
 
 def serialize_status(status) -> dict[str, Any]:
@@ -211,7 +211,31 @@ def build_app(config_path: str | None = None) -> FastAPI:
             password=body.get("password", ""),
             port=int(body.get("port", 80)),
         )
-        return {"nvr_id": nvr_id, "message": "NVR added"}
+        # Auto-discover cameras from the new NVR via ISAPI
+        discovered = 0
+        try:
+            channels = await get_nvr_channel_ids(
+                body.get("ip", ""),
+                body.get("username", ""),
+                body.get("password", ""),
+            )
+            if channels:
+                conn = repo.connection
+                cursor = conn.cursor()
+                for cam_id in sorted(channels):
+                    cam_name = f"IPCamera {cam_id}"
+                    cursor.execute(
+                        "INSERT INTO [NVRTest].[dbo].[cameraresults] "
+                        "(nvr_id, camera, cam_id) VALUES (?, ?, ?)",
+                        nvr_id, cam_name, cam_id,
+                    )
+                    discovered += 1
+                conn.commit()
+        except Exception as exc:
+            # Discovery is best-effort; don't fail the add
+            print(f"Camera discovery warning for NVR {nvr_id}: {exc}")
+
+        return {"nvr_id": nvr_id, "discovered_cameras": discovered, "message": "NVR added"}
 
     @app.put("/api/nvrs/{nvr_id}")
     async def update_nvr(nvr_id: int, body: dict):

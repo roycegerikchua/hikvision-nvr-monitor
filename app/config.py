@@ -27,8 +27,6 @@ class NvrConfig(BaseModel):
     @field_validator("cameras")
     @classmethod
     def require_cameras(cls, value: List[CameraConfig]) -> List[CameraConfig]:
-        if not value:
-            raise ValueError("each NVR needs at least one camera")
         return value
 
 

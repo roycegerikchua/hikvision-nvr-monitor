@@ -30,10 +30,9 @@ SELECT
     l.[camera],
     l.[cam_id]
 FROM [NVRTest].[dbo].[NVR] n
-JOIN latest_cam l ON l.[nvr_id] = n.[nvr_id]
+LEFT JOIN latest_cam l ON l.[nvr_id] = n.[nvr_id]
 WHERE n.[ip] IS NOT NULL AND n.[ip] != ''
-ORDER BY n.[nvr_id], l.[line_id]
-"""
+ORDER BY n.[nvr_id], l.[line_id]"""
 
 UPDATE_CAMERA_SQL = """\
 UPDATE [NVRTest].[dbo].[cameraresults]
@@ -72,13 +71,17 @@ def rows_to_config(
                 "https": False,
                 "cameras": [],
             }
-        grouped[nvr_id]["cameras"].append(
-            CameraConfig(
-                id=str(int(_get(row, "cam_id")) * 100 + 1),
-                name=str(_get(row, "camera")),
-                line_id=int(_get(row, "line_id")),
+        cam_id = _get(row, "cam_id")
+        cam_name = _get(row, "camera")
+        line_id = _get(row, "line_id")
+        if cam_id is not None and cam_name is not None:
+            grouped[nvr_id]["cameras"].append(
+                CameraConfig(
+                    id=str(int(cam_id) * 100 + 1),
+                    name=str(cam_name),
+                    line_id=int(line_id) if line_id is not None else None,
+                )
             )
-        )
 
     nvrs = [NvrConfig(**item) for item in grouped.values()]
     return AppConfig(
@@ -113,8 +116,12 @@ class SqlServerRepository:
             filtered = []
             for row in rows:
                 rid = int(_get(row, "nvr_id"))
-                # cam_id is the 9th column (index 8) in the SELECT
-                cid = int(_get(row, "cam_id"))
+                raw_cid = _get(row, "cam_id")
+                if raw_cid is None:
+                    # NVR has no cameras yet — keep the row
+                    filtered.append(row)
+                    continue
+                cid = int(raw_cid)
                 if (rid, cid) not in inactive:
                     filtered.append(row)
             rows = filtered

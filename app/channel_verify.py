@@ -77,6 +77,7 @@ async def verify_all_channels(nvrs: list[dict]) -> dict:
     nvr_ids = [n["nvr_id"] for n in nvrs if n.get("ip")]
 
     inactive: set[tuple[int, int]] = set()
+    discovered: set[tuple[int, int]] = set()
     reachable = 0
     unreachable = 0
 
@@ -100,6 +101,19 @@ async def verify_all_channels(nvrs: list[dict]) -> dict:
         for cid in orphan_ids:
             inactive.add((nvr_id, cid))
 
+        # Find new cameras: on NVR but not in DB → auto-discover
+        new_ids = nvr_channels - db_cam_ids
+        if new_ids:
+            for cam_id in sorted(new_ids):
+                cam_name = f"IPCamera {cam_id}"
+                cursor.execute(
+                    "INSERT INTO [NVRTest].[dbo].[cameraresults] "
+                    "(nvr_id, camera, cam_id) VALUES (?, ?, ?)",
+                    nvr_id, cam_name, cam_id,
+                )
+                discovered.add((nvr_id, cam_id))
+            conn.commit()
+
     return {
         "nvr_count": len(nvr_ids),
         "reachable": reachable,
@@ -107,7 +121,9 @@ async def verify_all_channels(nvrs: list[dict]) -> dict:
         "total_db_cameras": _count_db_cameras(),
         "total_nvr_channels": _sum_channel_lists(channel_lists),
         "inactive_count": len(inactive),
+        "discovered_count": len(discovered),
         "inactive": [{"nvr_id": n, "cam_id": c} for n, c in sorted(inactive)],
+        "discovered": [{"nvr_id": n, "cam_id": c} for n, c in sorted(discovered)],
     }
 
 
