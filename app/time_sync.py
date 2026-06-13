@@ -133,6 +133,8 @@ async def _check_one(n: dict) -> dict:
         "nvr_id": n["nvr_id"],
         "location": n["location"],
         "ip": n["ip"],
+        "username": n["username"],
+        "password": n["password"],
         **info,
     }
 
