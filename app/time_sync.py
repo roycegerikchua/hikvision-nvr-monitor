@@ -171,7 +171,7 @@ async def _sync_one(r: dict) -> dict:
     }
 
 
-def _skip_result_nvr(r: dict, reason: str) -> dict:
+async def _skip_result_nvr(r: dict, reason: str) -> dict:
     return {
         "nvr_id": r["nvr_id"],
         "location": r["location"],

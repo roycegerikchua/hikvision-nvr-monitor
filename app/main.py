@@ -267,9 +267,9 @@ def build_app(config_path: str | None = None) -> FastAPI:
         repo = get_repo()
         new_config = repo.load_config()
         service.config = new_config
-        # Reset camera statuses — they'll be rebuilt on the next poll
-        service._statuses = {}
-        return {"message": "Config reloaded from DB", "nvr_count": len(new_config.nvrs)}
+        # Trigger an immediate poll in the background
+        asyncio.create_task(service.poll_once())
+        return {"message": "Config reloaded from DB, polling", "nvr_count": len(new_config.nvrs)}
 
     def get_repo() -> SqlServerRepository:
         if repository is None:
