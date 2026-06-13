@@ -269,8 +269,6 @@ def build_app(config_path: str | None = None) -> FastAPI:
         service.config = new_config
         # Reset camera statuses — they'll be rebuilt on the next poll
         service._statuses = {}
-        # Optionally trigger an immediate poll
-        await service.poll_once()
         return {"message": "Config reloaded from DB", "nvr_count": len(new_config.nvrs)}
 
     def get_repo() -> SqlServerRepository:
