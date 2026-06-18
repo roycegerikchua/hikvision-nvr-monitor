@@ -12,7 +12,15 @@ from .config import load_config
 from .monitor import MonitorService
 from .repository import load_config_from_sql_env, SqlServerRepository
 from .time_sync import clock_check_all, sync_all
-from .channel_verify import verify_all_channels, load_inactive, save_inactive, get_nvr_channel_ids
+from .channel_verify import (
+    ensure_channel_setting,
+    get_nvr_channel_ids,
+    load_channel_settings,
+    load_inactive,
+    save_inactive,
+    set_channel_enabled,
+    verify_all_channels,
+)
 
 
 def serialize_status(status) -> dict[str, Any]:
@@ -47,13 +55,20 @@ def build_app(config_path: str | None = None) -> FastAPI:
             except asyncio.CancelledError:
                 pass
 
-    app = FastAPI(title="Hikvision NVR Recording Monitor", lifespan=lifespan)
+    app = FastAPI(title="UBE CCTV Monitoring Portal", lifespan=lifespan)
 
     # ── Camera Status ─────────────────────────────────────────
     @app.get("/api/status")
     async def api_status():
         statuses = [serialize_status(item) for item in service.snapshot().values()]
-        statuses.sort(key=lambda item: (item["nvr_name"], int(item["camera_id"])))
+        def camera_track_id(item):
+            try:
+                return int(item["camera_id"])
+            except Exception:
+                return 99999999
+        def camera_sort_number(item):
+            return camera_track_id(item) // 100
+        statuses.sort(key=lambda item: (item["nvr_name"], camera_sort_number(item), camera_track_id(item)))
         return {
             "overall_status": service.overall_status(),
             "last_poll_started_at": service.last_poll_started_at.isoformat() if service.last_poll_started_at else None,
@@ -137,7 +152,7 @@ def build_app(config_path: str | None = None) -> FastAPI:
     async def manage_cameras():
         """List all cameras grouped by NVR with inactive status."""
         repo = get_repo()
-        inactive = load_inactive()
+        settings = load_channel_settings(repo.connection)
         raw_nvrs = []
         for n in repo.list_nvrs():
             raw = repo.get_nvr(n["nvr_id"])
@@ -158,10 +173,16 @@ def build_app(config_path: str | None = None) -> FastAPI:
             cameras = []
             for r in rows:
                 cid = int(r[0])
+                if (n["nvr_id"], cid) not in settings:
+                    ensure_channel_setting(conn, n["nvr_id"], cid, enabled=True)
+                    settings[(n["nvr_id"], cid)] = True
+                enabled = settings.get((n["nvr_id"], cid), True)
                 cameras.append({
                     "cam_id": cid,
                     "name": r[1],
-                    "inactive": (n["nvr_id"], cid) in inactive,
+                    "enabled": enabled,
+                    "inactive": not enabled,
+                    "channel_status": "Enabled" if enabled else "Disabled",
                 })
             results.append({
                 "nvr_id": n["nvr_id"],
@@ -179,13 +200,14 @@ def build_app(config_path: str | None = None) -> FastAPI:
         nvr_id = int(body["nvr_id"])
         cam_id = int(body["cam_id"])
         inactive = body.get("inactive", True)
-        pairs = load_inactive()
-        if inactive:
-            pairs.add((nvr_id, cam_id))
-        else:
-            pairs.discard((nvr_id, cam_id))
-        save_inactive(pairs)
-        return {"nvr_id": nvr_id, "cam_id": cam_id, "inactive": inactive}
+        set_channel_enabled(get_repo().connection, nvr_id, cam_id, not inactive)
+        return {
+            "nvr_id": nvr_id,
+            "cam_id": cam_id,
+            "enabled": not inactive,
+            "inactive": inactive,
+            "channel_status": "Enabled" if not inactive else "Disabled",
+        }
 
     # ── NVR Management CRUD ───────────────────────────────────
     @app.get("/api/nvrs")
@@ -289,45 +311,48 @@ DASHBOARD_HTML = """\
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hikvision NVR Recording Monitor</title>
+  <title>UBE CCTV Monitoring Portal</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; margin: 24px; background: #0f172a; color: #e2e8f0; }
-    h1 { margin-bottom: 4px; }
-    .muted { color: #94a3b8; }
-    .tabs { display: flex; gap: 0; margin: 18px 0; border-bottom: 2px solid #1e293b; }
-    .tab { padding: 10px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none;
-            border-radius: 8px 8px 0 0; background: transparent; color: #94a3b8; font-size: 14px; }
-    .tab.active { background: #1e293b; color: #e2e8f0; border-color: #334155; border-bottom-color: #1e293b; }
-    .tab:hover { color: #e2e8f0; }
-    .page { display: none; }
+    :root { --purple:#4b148c; --purple-2:#6b21a8; --bg:#f7f4fb; --text:#1f1726; --muted:#6b6270; --border:#e5ddec; --panel:#ffffff; }
+    body { font-family: Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    body::before { content:""; display:block; height: 6px; background: var(--purple); }
+    h1 { margin: 24px 24px 4px; color: var(--purple); font-size: 28px; }
+    .muted { color: var(--muted); }
+    body > .muted { margin: 0 24px; }
+    .tabs { display: flex; gap: 0; margin: 22px 24px 0; border-bottom: 1px solid var(--border); }
+    .tab { padding: 11px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none;
+            border-radius: 10px 10px 0 0; background: transparent; color: var(--muted); font-size: 14px; font-weight: 700; }
+    .tab.active { background: var(--panel); color: var(--purple); border-color: var(--border); border-bottom-color: var(--panel); }
+    .tab:hover { color: var(--purple); }
+    .page { display: none; padding: 0 24px 24px; }
     .page.active { display: block; }
     .toolbar, .filters { display: flex; gap: 12px; align-items: center; margin: 18px 0; flex-wrap: wrap; }
-    button, select, input { border: 1px solid #334155; padding: 10px 14px; border-radius: 8px;
-                            font-size: 13px; }
-    button { background: #2563eb; color: white; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    button.danger { background: #dc2626; }
+    button, select, input { border: 1px solid var(--border); padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+    button { background: var(--purple); color: white; cursor: pointer; border-color: var(--purple); font-weight: 700; }
+    button:hover { background: var(--purple-2); }
+    button.danger { background: #dc2626; border-color: #dc2626; }
     button.danger:hover { background: #b91c1c; }
-    button.secondary { background: #475569; }
-    button.secondary:hover { background: #64748b; }
-    select, input { background: #111827; color: #e2e8f0; }
+    button.secondary { background: white; color: var(--purple); border-color: var(--purple); }
+    button.secondary:hover { background: #f3eafa; }
+    select, input { background: white; color: var(--text); }
     input { min-width: 280px; }
-    table { width: 100%; border-collapse: collapse; background: #111827; border-radius: 12px; overflow: hidden; }
-    th, td { padding: 12px; border-bottom: 1px solid #1f2937; text-align: left; vertical-align: top; }
-    th { background: #1e293b; color: #cbd5e1; position: sticky; top: 0; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(31,23,38,.06); }
+    th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { background: #faf8fc; color: #3b2a45; position: sticky; top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:hover td { background: #fcf9ff; }
     .badge { padding: 4px 10px; border-radius: 999px; color: white; font-weight: bold; text-transform: uppercase; font-size: 12px; }
     .ok { background: #16a34a; } .stale { background: #f97316; } .missing { background: #dc2626; } .error { background: #7c2d12; } .unknown { background: #64748b; }
-    .card { background: #111827; padding: 16px; border-radius: 12px; margin-bottom: 16px; }
-    a { color: #93c5fd; }
+    .card { background: var(--panel); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(31,23,38,.06); }
+    a { color: var(--purple); }
     .nvr-link { font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
     .counts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .pill { background: #1e293b; border-radius: 999px; padding: 5px 10px; color: #cbd5e1; font-size: 12px; }
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+    .pill { background: #f3eafa; border: 1px solid var(--border); border-radius: 999px; padding: 5px 10px; color: var(--text); font-size: 12px; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(31,23,38,0.5); z-index: 1000; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
-    .modal { background: #1e293b; border-radius: 12px; padding: 24px; min-width: 400px; max-width: 500px; }
-    .modal h3 { margin-top: 0; }
-    .modal label { display: block; margin: 10px 0 4px; color: #94a3b8; font-size: 12px; text-transform: uppercase; }
+    .modal { background: white; border-radius: 12px; padding: 24px; min-width: 400px; max-width: 500px; box-shadow: 0 18px 50px rgba(31,23,38,.22); }
+    .modal h3 { margin-top: 0; color: var(--purple); }
+    .modal label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 12px; text-transform: uppercase; font-weight: 700; }
     .modal input { width: 100%; min-width: 0; }
     .modal .btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
     td.actions { white-space: nowrap; }
@@ -335,8 +360,8 @@ DASHBOARD_HTML = """\
   </style>
 </head>
 <body>
-  <h1>Hikvision NVR Recording Monitor</h1>
-  <div class="muted">Per-camera latest recording checker using Hikvision ISAPI.</div>
+  <h1>UBE CCTV Monitoring Portal</h1>
+  <div class="muted">Recording health, playback access, and NVR camera management.</div>
 
   <div class="tabs">
     <div class="tab active" onclick="switchTab('cameras')">Cameras</div>
@@ -462,6 +487,13 @@ function renderCounts(cameras) {
   document.getElementById('counts').innerHTML = ['ok','stale','missing','error']
     .map(s => `<span class="pill"><span class="badge ${s}">${s}</span> ${counts[s] || 0}</span>`).join('');
 }
+function cameraTrack(c) {
+  const track = parseInt(c.camera_id, 10);
+  return Number.isFinite(track) ? track : 99999999;
+}
+function cameraNumber(c) {
+  return Math.floor(cameraTrack(c) / 100);
+}
 function filteredCameras() {
   const q = document.getElementById('searchBox').value.trim().toLowerCase();
   const status = document.getElementById('statusFilter').value;
@@ -473,7 +505,7 @@ function filteredCameras() {
     const haystack = [c.nvr_name, c.nvr_host, c.camera_name, c.camera_id, c.status, c.error, c.last_end_time]
       .map(v => String(v ?? '').toLowerCase()).join(' ');
     return haystack.includes(q);
-  });
+  }).sort((a, b) => a.nvr_name.localeCompare(b.nvr_name) || cameraNumber(a) - cameraNumber(b) || cameraTrack(a) - cameraTrack(b));
 }
 function renderRows() {
   const rows = filteredCameras();
@@ -571,19 +603,22 @@ function renderCamSubRow(nvrId) {
   if (!ed || !ed._expanded) return '';
   return `<tr><td colspan="9" style="padding:0;background:var(--bg-elevated)">
     <div style="padding:8px 12px;font-size:12px">
-      <div style="display:flex;gap:8px;font-weight:600;color:var(--text-tertiary);padding:4px 0;border-bottom:1px solid var(--border-subtle);margin-bottom:4px">
-        <span style="width:50px">Cam ID</span>
+      <div style="display:flex;gap:8px;font-weight:600;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border);margin-bottom:4px">
+        <span style="width:150px">Cam ID / Control</span>
         <span style="flex:1">Name</span>
-        <span style="width:80px;text-align:center">Status</span>
+        <span style="width:120px;text-align:center">Channel Status</span>
       </div>
       ${ed.cameras.map(c => {
         const statusClass = c.inactive ? 'badge missing' : 'badge ok';
         const statusText = c.inactive ? 'OFF' : 'ON';
-        const toggleAction = c.inactive ? 'enable' : 'disable';
+        const channelStatus = c.channel_status || (c.inactive ? 'Disabled' : 'Enabled');
         return `<div style="display:flex;gap:8px;align-items:center;padding:3px 0">
-          <span style="width:50px;font-family:var(--font-mono);color:var(--text-secondary)">${c.cam_id}</span>
+          <span style="width:150px;font-family:monospace;color:var(--text);display:flex;align-items:center;gap:8px">
+            <span>${c.cam_id}</span>
+            <span class="${statusClass}" style="cursor:pointer" onclick="toggleCamera(${nvrId},${c.cam_id},${!c.inactive})">${statusText}</span>
+          </span>
           <span style="flex:1">${escapeHtml(c.name)}</span>
-          <span style="width:80px;text-align:center"><span class="${statusClass}" style="cursor:pointer" onclick="toggleCamera(${nvrId},${c.cam_id},${!c.inactive})">${statusText}</span></span>
+          <span style="width:120px;text-align:center"><span class="${statusClass}">${escapeHtml(channelStatus)}</span></span>
         </div>`;
       }).join('')}
     </div>
@@ -608,10 +643,11 @@ async function toggleCamera(nvrId, camId, setInactive) {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({nvr_id: nvrId, cam_id: camId, inactive: setInactive}),
   });
-  // Refresh camera data
+  // Refresh camera data and keep this NVR expanded
   camData = {};
-  if (camData[nvrId]) camData[nvrId] = {_expanded: true};
   await toggleNvrCameras(nvrId);
+  if (camData[nvrId]) camData[nvrId]._expanded = true;
+  renderNvrRows();
 }
 
 async function clockCheck() {

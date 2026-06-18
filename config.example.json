@@ -1,0 +1,20 @@
+{
+  "poll_interval_seconds": 300,
+  "lookback_hours": 24,
+  "stale_after_minutes": 30,
+  "nvrs": [
+    {
+      "name": "Main NVR",
+      "host": "192.168.1.10",
+      "port": 80,
+      "https": false,
+      "username": "admin",
+      "password": "CHANGE_ME",
+      "cameras": [
+        { "id": "101", "name": "Camera 1" },
+        { "id": "201", "name": "Camera 2" },
+        { "id": "301", "name": "Camera 3" }
+      ]
+    }
+  ]
+}

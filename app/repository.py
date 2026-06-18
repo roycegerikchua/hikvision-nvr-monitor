@@ -83,7 +83,7 @@ def rows_to_config(
                 )
             )
 
-    nvrs = [NvrConfig(**item) for item in grouped.values()]
+    nvrs = [NvrConfig(**item) for item in grouped.values() if item["cameras"]]
     return AppConfig(
         poll_interval_seconds=poll_interval_seconds,
         lookback_hours=lookback_hours,
